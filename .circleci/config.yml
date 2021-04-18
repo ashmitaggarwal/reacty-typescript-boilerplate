@@ -1,0 +1,23 @@
+version: 2
+notify:
+  webhooks:
+    -
+      url: 'https://production-reviewee-api.herokuapp.com/notification/ci'
+jobs:
+  build:
+    working_directory: ~/brewbroker-react
+    docker:
+      - {image: 'circleci/node:11.14.0'}
+    environment:
+      - REVIEWEE_URL: https://production-reviewee-api.herokuapp.com
+      - COMMITS_CHECK_ENDPOINT: repository/brewbroker-react/haveRejectedCommits
+      - COMMITS_CHECK_INDICATOR: \"success\":true
+    steps:
+      - {run: {name: 'Check rejected commits', command: "wget ${REVIEWEE_URL}/${COMMITS_CHECK_ENDPOINT} -q -O - | grep -q ${COMMITS_CHECK_INDICATOR}"}}
+      - checkout
+      - {run: {name: 'Install System Dependencies', command: "sudo apt-get update && sudo apt-get -f install && sudo apt-get install wget\n"}}
+      - {run: {name: 'Install Node dependencies', command: "npm install\n"}}
+      - {run: {name: 'Run unit tests', command: 'npm run jest'}}
+      - {run: 'bash .circleci/setup-heroku.sh'}
+      - {add_ssh_keys: {fingerprints: ['b1:c9:ad:27:ba:c7:96:a6:c8:02:90:e7:d3:75:04:6f']}}
+      - {deploy: {name: 'Deploy Master to Heroku', command: "if [ \"${CIRCLE_BRANCH}\" == \"master\" ]; then\n    git push -f heroku master\nfi\n"}}
